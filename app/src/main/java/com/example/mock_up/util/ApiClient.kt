@@ -12,6 +12,7 @@ import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.impl.cli
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+//var URL = "http://149.248.20.141:80"
 class ApiClient {
 
     fun isOnline(context: Context): Boolean {
@@ -46,7 +47,7 @@ class ApiClient {
             val httpclient: HttpClient = HttpClientBuilder.create().build()
             // 2. make GET request to the given URL
             val httpResponse: HttpResponse = httpclient.execute(HttpGet(url))
-            // 3. receive response as inputStream
+            // 3. receive response as inputS    tream
             inputStream = httpResponse.getEntity().getContent()
             // 4. convert inputstream to string
             if (inputStream != null) result =

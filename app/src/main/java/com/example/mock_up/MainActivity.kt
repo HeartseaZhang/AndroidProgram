@@ -34,6 +34,10 @@ import com.example.mock_up.UserSession.userId
 import com.example.mock_up.UserSession.userName
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import androidx.compose.material.BottomNavigation
+import androidx.compose.material.BottomNavigationItem
+import androidx.compose.material.Text
+import androidx.compose.ui.unit.sp
 
 @Serializable
 data class ChatroomResponse(
@@ -64,13 +68,69 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermission()
         checkGooglePlayServices()
     }
-
-    @Preview(showBackground = true)
+@Composable
+fun MainScreen(modifier: Modifier = Modifier)
+{
+    var selectedTab by remember { mutableStateOf(0) }
+    Scaffold(
+//        topBar = {
+//            CenterAlignedTopAppBar(
+//                title = {
+//                    Box(
+//                        modifier = Modifier.fillMaxWidth(),
+//                        contentAlignment = Alignment.Center
+//                    ) {
+//                        Text("Chatroom")
+//                    }
+//                },
+//                actions = {
+//                    Row {
+//                        Button(onClick = { /* Handle action */ }) {
+//                            Text("Create Chatroom")
+//                        }
+//                        Button(onClick = { /* Handle action */ }) {
+//                            Text("Tasklist")
+//                        }
+//                    }
+//                }
+//            )
+//        },
+        bottomBar = {
+            BottomNavigation {
+                BottomNavigationItem(
+                    icon = { /* Icon for Chatroom */ },
+                    label = { Text(text = "Chatroom",fontSize = 20.sp) },
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 }
+                )
+                BottomNavigationItem(
+                    icon = { /* Icon for Task */ },
+                    label = { Text(text = "Task",fontSize = 20.sp) },
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 }
+                )
+                BottomNavigationItem(
+                    icon = { /* Icon for Me */ },
+                    label = { Text(text = "Me",fontSize = 20.sp) },
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 }
+                )
+            }
+        }
+    ) { innerPadding ->
+        when (selectedTab) {
+            0 -> ChatroomScreen(modifier = Modifier.padding(innerPadding))
+            1 -> TaskScreen(modifier = Modifier.padding(innerPadding))
+            2 -> MeScreen(modifier = Modifier.padding(innerPadding))
+        }
+    }
+}
     @Composable
-    fun MainScreen() {
+    fun ChatroomScreen(modifier: Modifier = Modifier) {
         var chatrooms by remember { mutableStateOf(listOf<Chatroom>()) }
         val coroutineScope = rememberCoroutineScope()
-
+        var showDialog by remember { mutableStateOf(false) }
+        var chatroomName by remember { mutableStateOf("") }
         LaunchedEffect(Unit) {
             coroutineScope.launch(Dispatchers.IO) {
                 val jsonResponse = apiClient.GET("http://192.168.0.51:5722/get_chatrooms")
@@ -95,14 +155,12 @@ class MainActivity : ComponentActivity() {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("$userName") // 显示用户ID
-                                Text("Chatroom")
-                                Button(onClick = {
-                                    val intent = Intent(this@MainActivity, TaskListActivity::class.java)
-                                    startActivity(intent)
-                                }) {
-                                    Text("Tasklist") // Tasklist按钮
-                                }
+                                Text("$userName",fontSize = 20.sp) // 显示用户ID
+                                Text("Chatroom",fontSize = 20.sp)
+                                    Button(onClick = { showDialog = true }) {
+                                        Text("Create") // 创建聊天室按钮
+                                    }
+
                             }
                         },
                     )
@@ -121,7 +179,47 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.padding(innerPadding)
             )
         }
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Create Chatroom") },
+                text = {
+                    TextField(
+                        value = chatroomName,
+                        onValueChange = { chatroomName = it },
+                        label = { Text(text = "Chatroom Name") }
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val response = apiClient.POST("http://192.168.0.51:5722/create_chatrooms?name=$chatroomName","{}")
+                            if (response.isNotEmpty()) {
+                                    showDialog = false
+                                    chatroomName = ""
+                                    val jsonResponse = apiClient.GET("http://192.168.0.51:5722/get_chatrooms")
+                                    if (jsonResponse.isNotEmpty()) {
+                                        val newResponse = Json.decodeFromString<ChatroomResponse>(jsonResponse)
+                                        withContext(Dispatchers.Main) {
+                                        chatrooms = newResponse.data
+                                    }
+                                }
+                            }
+                        }
+                    }) {
+                        Text("Create")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = { showDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
     }
+
+
     private fun checkGooglePlayServices(): Boolean {
         val apiAvailability = GoogleApiAvailability.getInstance()
         val resultCode = apiAvailability.isGooglePlayServicesAvailable(this)
@@ -161,8 +259,14 @@ class MainActivity : ComponentActivity() {
     }
 
 }
-
-
+@Composable
+fun TaskScreen(modifier: Modifier = Modifier) {
+    // Task screen content
+}
+    @Composable
+    fun MeScreen(modifier: Modifier = Modifier) {
+        // Me screen content
+    }
 @Composable
 fun ChatRoomList(
     chatrooms: List<Chatroom>,
