@@ -13,17 +13,30 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
+    override fun onCreate() {
+        super.onCreate()
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                Log.d("FCM Token", "Token: $token")
+                sendRegistrationToServer(token)
+            } else {
+                Log.w("FCM Token", "Fetching FCM registration token failed", task.exception)
+            }
+        }
+    }
+
     override fun onNewToken(token: String) {
         Log.d(TAG, "Refreshed token: $token")
-        sendRegistrationToServer(token)
+        //sendRegistrationToServer(token)
     }
 
     private fun sendRegistrationToServer(token: String) {
         // Implement your own logic to submit token to server
         val apiClient = ApiClient()
-        val userId = 1155217745 // 使用你的学生ID
+        val userId = "" // 使用你的学生ID
         apiClient.POST(
-            "https://10.0.2.2:8000/submit_push_token",
+            "https://149.248.20.141:80/submit_push_token",
             "user_id=$userId&token=$token"
         )
     }

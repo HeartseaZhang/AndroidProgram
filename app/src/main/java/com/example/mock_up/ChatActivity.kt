@@ -48,7 +48,8 @@ data class Message (
     val message_time: String,
     val message:String?,
     val description:String?,
-    val title:String?
+    val title:String?,
+    val completeUser:String?
     )
 
 //@kotlinx.serialization.Serializable
@@ -67,7 +68,13 @@ data class Message (
 //    override val name: String,
 //    override val message_time: String
 //) : Message()
-
+@kotlinx.serialization.Serializable
+data class SendTaskRequest(
+    val title: String,
+    val description: String,
+    val createUserId: String,
+    val chatroom_id: Int
+)
 
 @kotlinx.serialization.Serializable
 data class SendMessageRequest(
@@ -76,16 +83,23 @@ data class SendMessageRequest(
     val user_id: String,
     val chatroom_id: Int
 )
+@kotlinx.serialization.Serializable
+data class AcceptTask(
+    val title: String,
+    val description: String,
+    val userId: String,
+    val chatroomId:Int
+)
 
 var USER_NAME="$userName"
 var USER_ID="$userId"
-
+var chatroomId=1
 @OptIn(ExperimentalMaterial3Api::class)
 class ChatActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val chatroomId = intent.getIntExtra("chatroom_id", -1)
+        chatroomId = intent.getIntExtra("chatroom_id", -1)
         val chatroomName = intent.getStringExtra("chatroom_name") ?: "Chatroom"  // 默认值为 "Chatroom"
         setContent {
             ChatScreen(chatroomId,chatroomName)
@@ -107,7 +121,7 @@ class ChatActivity : ComponentActivity() {
 
         fun loadMessages() {
             coroutineScope.launch(Dispatchers.IO) {
-                val jsonResponse = apiClient.GET("http://192.168.0.51:5722/get_messages?chatroom_id=$chatroomId")
+                val jsonResponse = apiClient.GET("http://149.248.20.141:80/get_messages?chatroom_id=$chatroomId")
                 if (jsonResponse.isNotEmpty()) {
                     val json = Json {
                         ignoreUnknownKeys = true
@@ -239,7 +253,7 @@ class ChatActivity : ComponentActivity() {
 
                         coroutineScope.launch(Dispatchers.IO) {
                             try {
-                                val postResponse = apiClient.POST("http://192.168.0.51:5722/send_message",
+                                val postResponse = apiClient.POST("http://149.248.20.141:80/send_message",
                                     Json.encodeToString(sendMessageRequest))
                                 withContext(Dispatchers.Main) {
                                     if (postResponse.contains("ERROR")) {
@@ -287,12 +301,19 @@ class ChatActivity : ComponentActivity() {
                                         description = taskDescription,
                                         creatorUserId = USER_ID
                                     )
+                                    val sendtaskRequest = SendTaskRequest(
+                                        title = taskTitle,
+                                        description = taskDescription,
+                                        createUserId = USER_ID ,
+                                        chatroom_id = chatroomId
+                                    )
                                     taskTitle=""
                                     taskDescription=""
                                     coroutineScope.launch(Dispatchers.IO) {
                                         try {
-                                            val postResponse = apiClient.POST("http://192.168.0.51:5722/task/create",
+                                            val postResponse = apiClient.POST("http://149.248.20.141:80/task/create",
                                                 Json.encodeToString(taskRequest))
+                                            apiClient.POST("http://149.248.20.141:80/send_task",Json.encodeToString(sendtaskRequest))
                                             withContext(Dispatchers.Main) {
                                                 if (postResponse.contains("ERROR")) {
                                                     Log.e("POST Request", "Failed to send message: $postResponse")
@@ -324,6 +345,11 @@ class ChatActivity : ComponentActivity() {
     }
     @Composable
     fun MessageItem(message: Message) {
+        val coroutineScope = rememberCoroutineScope()
+        val apiClient = ApiClient()
+        var button by remember (message.title) { mutableStateOf(message.completeUser.isNullOrEmpty()) }
+
+        var showSuccessDialog by remember { mutableStateOf(false) } // 添加状态变量
         Row(
             horizontalArrangement = if (message.user_id==USER_ID) Arrangement.End else Arrangement.Start,
             modifier = Modifier
@@ -341,8 +367,48 @@ class ChatActivity : ComponentActivity() {
                     if (message.title.isNullOrEmpty()) {
                         Text(text = "${message.name}: ${message.message}")
                     } else {
-                        Text(text = "${message.name} Task: ${message.title}")
-                        Text(text = "Description: ${message.description}")
+                        Text(text = "${message.name}: ")
+                        Text("${message.title}")
+                        Text(text = "${message.description}")
+                        //var button = false;
+//                        if(message.completeUser.isNullOrEmpty()){
+//                            button = true;
+//                        }
+                        Button(
+
+                            enabled = button,
+                            onClick = {
+                                button = false;
+                                val acceptTask = message.description?.let {
+                                    AcceptTask(
+                                        title = message.title,
+                                        description = it,
+                                        userId = USER_ID,
+                                        chatroomId = chatroomId
+                                    )
+                                }
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    try {
+                                        val postResponse = apiClient.POST("http://149.248.20.141:80/task/accept",
+                                            Json.encodeToString(acceptTask))
+                                        withContext(Dispatchers.Main) {
+                                            if (postResponse.contains("ERROR")) {
+                                                Log.e("POST Request", "Failed to send message: $postResponse")
+                                            }else{
+                                                showSuccessDialog = true // 设置弹窗显示
+
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("POST Request", "Exception: ", e)
+                                    }
+                                }
+
+                            }
+                        ) {
+                            Text("Accept Task")
+                        }
+
                     }
                     Text(
                         text = message.message_time,
@@ -350,6 +416,18 @@ class ChatActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+        if (showSuccessDialog) {
+            AlertDialog(
+                onDismissRequest = { showSuccessDialog = false },
+                title = { Text("Tips") },
+                text = { Text("Accept Successfully") },
+                confirmButton = {
+                    Button(onClick = { showSuccessDialog = false }) {
+                        Text("ok")
+                    }
+                }
+            )
         }
     }
 //@Composable

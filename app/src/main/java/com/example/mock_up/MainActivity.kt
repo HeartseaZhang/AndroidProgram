@@ -37,16 +37,35 @@ import com.google.android.gms.common.GoogleApiAvailability
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.ui.unit.sp
+import com.example.mock_up.ChatActivity.MessageResponse
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.serialization.encodeToString
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Serializable
 data class ChatroomResponse(
     val data: List<Chatroom>,
     val success: Boolean,
-    val errorMsg: String
 )
-
-
+@Serializable
+data class TaskResponse(
+    val data: List<Task>,
+    val success: Boolean,
+)
+@Serializable
+data class Task(
+    val id: String,
+    val title:String,
+    val description:String,
+    val creatorUserId: String,
+    val completerUserId: String?,
+    val createdAt: String,
+    val completedAt: String?
+)
 @Serializable
 data class Chatroom(val id: Int, val name: String)
 
@@ -133,7 +152,7 @@ fun MainScreen(modifier: Modifier = Modifier)
         var chatroomName by remember { mutableStateOf("") }
         LaunchedEffect(Unit) {
             coroutineScope.launch(Dispatchers.IO) {
-                val jsonResponse = apiClient.GET("http://192.168.0.51:5722/get_chatrooms")
+                val jsonResponse = apiClient.GET("http://149.248.20.141:80/get_chatrooms")
                 if (jsonResponse.isNotEmpty()) {
                     val response = Json.decodeFromString<ChatroomResponse>(jsonResponse)
                     withContext(Dispatchers.Main) {
@@ -150,19 +169,16 @@ fun MainScreen(modifier: Modifier = Modifier)
                 Column {
                     CenterAlignedTopAppBar(
                         title = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("$userName",fontSize = 20.sp) // 显示用户ID
-                                Text("Chatroom",fontSize = 20.sp)
-                                    Button(onClick = { showDialog = true }) {
-                                        Text("Create") // 创建聊天室按钮
-                                    }
-
-                            }
+                            Text("Chatroom", fontSize = 20.sp)
                         },
+                        navigationIcon = {
+                            Text("$userName", fontSize = 20.sp, modifier = Modifier.padding(start = 16.dp))
+                        },
+                        actions = {
+                            IconButton(onClick = { showDialog = true }) {
+                                Icon(Icons.Default.Add, contentDescription = "Create Chatroom")
+                            }
+                        }
                     )
                     HorizontalDivider(color = Color.Black, thickness = 1.dp)
                 }
@@ -193,11 +209,11 @@ fun MainScreen(modifier: Modifier = Modifier)
                 confirmButton = {
                     Button(onClick = {
                         coroutineScope.launch(Dispatchers.IO) {
-                            val response = apiClient.POST("http://192.168.0.51:5722/create_chatrooms?name=$chatroomName","{}")
+                            val response = apiClient.POST("http://149.248.20.141:80/create_chatrooms?name=$chatroomName","{}")
                             if (response.isNotEmpty()) {
                                     showDialog = false
                                     chatroomName = ""
-                                    val jsonResponse = apiClient.GET("http://192.168.0.51:5722/get_chatrooms")
+                                    val jsonResponse = apiClient.GET("http://149.248.20.141:80/get_chatrooms")
                                     if (jsonResponse.isNotEmpty()) {
                                         val newResponse = Json.decodeFromString<ChatroomResponse>(jsonResponse)
                                         withContext(Dispatchers.Main) {
@@ -259,14 +275,267 @@ fun MainScreen(modifier: Modifier = Modifier)
     }
 
 }
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskScreen(modifier: Modifier = Modifier) {
-    // Task screen content
-}
-    @Composable
-    fun MeScreen(modifier: Modifier = Modifier) {
-        // Me screen content
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    val tabs = listOf("My Created Tasks", "My Accepted Tasks")
+
+    Scaffold(
+        topBar = {
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = { selectedTabIndex = index },
+                        text = { Text(title) }
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        when (selectedTabIndex) {
+            0 -> MyCreatedTasksScreen(modifier = Modifier.padding(innerPadding))
+            1 -> MyAcceptedTasksScreen(modifier = Modifier.padding(innerPadding))
+        }
     }
+}
+
+@Composable
+fun MyCreatedTasksScreen(modifier: Modifier = Modifier) {
+    // Display tasks created by the user
+    // This part is left for further implementation
+    val coroutineScope = rememberCoroutineScope()
+    val apiClient = ApiClient()
+    val tasks = remember { mutableStateListOf<Task>() }
+
+    fun loadTasks() {
+        coroutineScope.launch(Dispatchers.IO) {
+            val jsonResponse = apiClient.GET("http://149.248.20.141:80/task/created/$USER_ID")
+            if (jsonResponse.isNotEmpty()) {
+                val json = Json {
+                    ignoreUnknownKeys = true
+                }
+                val response = json.decodeFromString<TaskResponse>(jsonResponse)
+                withContext(Dispatchers.Main) {
+                    tasks.clear()
+                    tasks.addAll(response.data)
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        loadTasks()
+    }
+    LazyColumn(modifier = modifier.fillMaxSize()) {
+        items(tasks) { task ->
+            TaskItem(task)
+        }
+    }
+}
+
+@Composable
+fun MyAcceptedTasksScreen(modifier: Modifier = Modifier) {
+    var showSuccessDialog by remember { mutableStateOf(false) } // 添加状态变量
+
+    // Display tasks accepted by the user
+    // This part is left for further implementation
+    val coroutineScope = rememberCoroutineScope()
+    val apiClient = ApiClient()
+    val tasks = remember { mutableStateListOf<Task>() }
+    fun loadTasks() {
+        coroutineScope.launch(Dispatchers.IO) {
+            val jsonResponse = apiClient.GET("http://149.248.20.141:80/task/completed/$USER_ID")
+            if (jsonResponse.isNotEmpty()) {
+                val json = Json {
+                    ignoreUnknownKeys = true
+                }
+                val response = json.decodeFromString<TaskResponse>(jsonResponse)
+                withContext(Dispatchers.Main) {
+                    tasks.clear()
+                    tasks.addAll(response.data)
+                }
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        loadTasks()
+    }
+    LazyColumn(modifier = modifier.fillMaxSize()) {
+        items(tasks) { task ->
+            TaskItem(task)
+        }
+    }
+
+}
+@Composable
+fun TaskItem(task: Task) {
+    val coroutineScope = rememberCoroutineScope()
+    val apiClient = ApiClient()
+    var flag by remember (task.id) { mutableStateOf(task.completedAt.isNullOrEmpty()) }
+
+    var showSuccessDialog by remember { mutableStateOf(false) } // 添加状态变量
+
+    OutlinedButton(
+        onClick = { /* Handle task click */ },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .height(60.dp),
+        shape = MaterialTheme.shapes.small,
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = Color.Black
+        ),
+        border = BorderStroke(1.dp, Color.Gray)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = task.title, style = MaterialTheme.typography.bodyLarge)
+                Text(text = task.description, style = MaterialTheme.typography.bodySmall)
+            }
+            //var flag = false
+            if (task.completerUserId == USER_ID) {
+//                if(task.completedAt.isNullOrEmpty()){
+//                    flag=true
+//                }
+                Button(
+                    enabled = flag,
+                    onClick = {
+                        flag = false
+
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val jsonResponse = apiClient.POST(
+                                "http://149.248.20.141:80/task/complete?taskId=${task.id}",
+                                Json.encodeToString(task.id)
+                            )
+                            withContext(Dispatchers.Main) {
+                                showSuccessDialog = true // 设置弹窗显示
+                            }
+                        }
+                    }
+                ) {
+                    Text("Done")
+                }
+            }
+        }
+    }
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showSuccessDialog = false },
+            title = { androidx.compose.material3.Text("Tips") },
+            text = { androidx.compose.material3.Text("Task done") },
+            confirmButton = {
+                Button(onClick = { showSuccessDialog = false }) {
+                    androidx.compose.material3.Text("ok")
+                }
+            }
+        )
+    }
+}
+@Composable
+fun MeScreen(modifier: Modifier = Modifier) {
+    val coroutineScope = rememberCoroutineScope()
+    val apiClient = ApiClient()
+    var userName by remember { mutableStateOf("$userName") }
+    var userEmail by remember { mutableStateOf("${UserSession.userEmail}") }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editField by remember { mutableStateOf("") }
+    var editType by remember { mutableStateOf("") }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.Start
+    ) {
+        Text(text = "User ID: $userId", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "Name: $userName", style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(onClick = {
+                editType = "Name"
+                editField = userName
+                showEditDialog = true
+            }) {
+                Text("Edit")
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "Password: ******", style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(onClick = {
+                editType = "Password"
+                editField = ""
+                showEditDialog = true
+            }) {
+                Text("Edit")
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "Email: $userEmail", style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+    }
+
+    if (showEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Edit $editType") },
+            text = {
+                TextField(
+                    value = editField,
+                    onValueChange = { editField = it },
+                    label = { Text(text = "New $editType") }
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (editType == "Name") {
+                        val modifyRequest = ModifyRequest(
+                            userId= USER_ID,
+                            userName=editField,
+                            password=""
+                        )
+                        coroutineScope.launch(Dispatchers.IO){
+                            apiClient.POST("http://149.248.20.141:80/user/modify",Json.encodeToString(modifyRequest))
+                        }
+                        userName = editField
+                        UserSession.userName=userName
+                    } else if (editType == "Password") {
+                        val modifyRequest = ModifyRequest(
+                            userId= USER_ID,
+                            userName=userName,
+                            password=editField
+                        )
+                        coroutineScope.launch(Dispatchers.IO){
+                            apiClient.POST("http://149.248.20.141:80/user/modify",Json.encodeToString(modifyRequest))
+                        }
+                    }
+
+                    showEditDialog = false
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showEditDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
 @Composable
 fun ChatRoomList(
     chatrooms: List<Chatroom>,
@@ -297,4 +566,9 @@ fun ChatRoomList(
     }
 }
 
-
+@Serializable
+data class ModifyRequest(
+    val userId:String,
+    val userName:String?,
+    val password:String?
+)

@@ -21,6 +21,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import android.app.AlertDialog
+import androidx.compose.ui.Alignment
+import kotlinx.serialization.Serializable
 
 @kotlinx.serialization.Serializable
 data class loginRequest(
@@ -33,6 +36,7 @@ data class LoginResponse(val data: User)
 data class User(
     val userId: String,
     val name: String,
+    val email:String,
 )
 var UserName: String? =null
 class LoginActivity : ComponentActivity() {
@@ -42,17 +46,26 @@ class LoginActivity : ComponentActivity() {
             LoginScreen()
         }
     }
+
     @Composable
     fun LoginScreen() {
         var userId by remember { mutableStateOf("") }
         var password by remember { mutableStateOf("") }
         val coroutineScope = rememberCoroutineScope()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally // 居中对齐
+
         ) {
+            Text(
+                text = "TaskTalk",
+                style = MaterialTheme.typography.headlineLarge.copy(fontSize = MaterialTheme.typography.headlineLarge.fontSize * 2), // 使用大号字体
+                modifier = Modifier.padding(bottom = 50.dp)
+            )
             TextField(
                 value = userId,
                 onValueChange = { userId = it },
@@ -63,28 +76,39 @@ class LoginActivity : ComponentActivity() {
             TextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("password") },
+                label = { Text("Password") },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    coroutineScope.launch {
-                        val success = login(userId, password)
-                        if (success) {
-                            UserSession.userId = userId
-                            UserSession.userName= UserName
-                            startActivity(Intent(this@LoginActivity, MainActivity::class.java))
-                            finish()
-                        } else {
-                            Log.e("LoginScreen", "Login failed")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            val success = login(userId, password)
+                            if (success) {
+                                UserSession.userId = userId
+                                UserSession.userName = UserName
+                                startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                                finish()
+                            } else {
+                                Log.e("LoginScreen", "Login failed")
+                            }
                         }
                     }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Login")
+                ) {
+                    Text("Login")
+                }
+                Button(
+                    onClick = {
+                        startActivity(Intent(this@LoginActivity, RegisterActivity::class.java))
+                    }
+                ) {
+                    Text("Register")
+                }
             }
         }
     }
@@ -99,15 +123,35 @@ class LoginActivity : ComponentActivity() {
                     ignoreUnknownKeys = true // 忽略未知字段
                 }
                 val apiClient = ApiClient()
-                val response = apiClient.POST("http://192.168.0.51:5722/user/login", Json.encodeToString(loginRequest))
-                UserName=json.decodeFromString<LoginResponse>(response).data.name
-                println("asdjkl"+UserName)
-                response.contains("success") // 假设成功响应中包含 "success"
+                val response = apiClient.POST("http://149.248.20.141:80/user/login", Json.encodeToString(loginRequest))
 
+
+                if (response.contains("errorMsg")) {
+                    withContext(Dispatchers.Main) {
+                        val errorResponse = json.decodeFromString<ErrorResponse>(response)
+                        showErrorDialog(errorResponse.errorMsg)
+                    }
+                    return@withContext false
+                } else {
+                    val loginResponse = json.decodeFromString<LoginResponse>(response)
+                    UserName = loginResponse.data.name
+                    UserSession.userEmail = loginResponse.data.email
+true
+                }
             } catch (e: Exception) {
                 Log.e("LoginActivity", "Error during login", e)
                 false
             }
+        }
+    }
+
+    private fun showErrorDialog(errorMessage: String) {
+        runOnUiThread {
+            AlertDialog.Builder(this)
+                .setTitle("Error")
+                .setMessage(errorMessage)
+                .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+                .show()
         }
     }
 }
@@ -125,3 +169,8 @@ class PasswordVisualTransformation : VisualTransformation {
         return TransformedText(AnnotatedString(transformedText), OffsetMapping.Identity)
     }
 }
+@Serializable
+data class ErrorResponse(
+    val success:Boolean,
+    val errorMsg:String,
+)

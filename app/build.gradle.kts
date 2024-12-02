@@ -77,7 +77,9 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.5.0")
     implementation("androidx.compose.material:material:1.5.0")
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.0")
-
+    implementation ("androidx.constraintlayout:constraintlayout:2.2.0")
+    implementation ("androidx.appcompat:appcompat:1.0.0-alpha1")
+    implementation ("androidx.activity:activity-compose:1.3.1")
     // Compose Material3 (如果使用 Material3)
  //   implementation "androidx.compose.material3:material3:1.1.0"
 }
