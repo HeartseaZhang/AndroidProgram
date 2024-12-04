@@ -51,7 +51,10 @@ import java.io.ByteArrayOutputStream
 import kotlin.io.encoding.ExperimentalEncodingApi
 import android.util.Base64
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.style.TextAlign
 
 @kotlinx.serialization.Serializable
 data class TaskRequest(
@@ -93,6 +96,18 @@ data class SendTaskRequest(
     val description: String,
     val createUserId: String,
     val chatroom_id: Int
+)
+@kotlinx.serialization.Serializable
+data class UserDetail(
+    val name: String,
+    val email: String,
+    val type: String,
+)
+
+@kotlinx.serialization.Serializable
+data class CreatePrivateChatRequest(
+    val user1Id: String,
+    val user2Id: String
 )
 
 @kotlinx.serialization.Serializable
@@ -259,7 +274,11 @@ class ChatActivity : ComponentActivity() {
                             Text("Back")
                         }
                     },
+
                     actions = {
+                        Button(onClick = { showDialog = true }) {
+                            Text("Initiate Task")
+                        }
                         IconButton(onClick = {
                             loadMessages()
                         }){
@@ -304,6 +323,14 @@ class ChatActivity : ComponentActivity() {
                         }
                     )
                 )
+                IconButton(onClick = {
+                    // Launch photo picker
+                    singlePhotoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = "Create Chatroom")
+                }
                 Button(onClick = {
                     if (messageText.isNotEmpty()) {
 
@@ -334,14 +361,7 @@ class ChatActivity : ComponentActivity() {
                 }) {
                     Text("Send")
                 }
-                Button(onClick = {
-                    // Launch photo picker
-                    singlePhotoPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                }) {
-                    Text("Send Image")
-                }
+
                 Button(onClick = {
                     if (messageText.isNotEmpty()) {
 
@@ -372,9 +392,7 @@ class ChatActivity : ComponentActivity() {
                 }) {
                     Text("Ask Ai")
                 }
-                Button(onClick = { showDialog = true }) {
-                    Text("Initiate Task")
-                }
+
             }
                 if (showDialog) {
                     AlertDialog(
@@ -448,6 +466,8 @@ class ChatActivity : ComponentActivity() {
     fun MessageItem(message: Message) {
         val coroutineScope = rememberCoroutineScope()
         val apiClient = ApiClient()
+        var showUserDetailDialog by remember { mutableStateOf(false) }
+        var selectedUserDetail by remember { mutableStateOf<UserDetail?>(null) }
         var button by remember (message.title) { mutableStateOf(message.completeUser.isNullOrEmpty()) }
 
         var showSuccessDialog by remember { mutableStateOf(false) } // 添加状态变量
@@ -457,6 +477,39 @@ class ChatActivity : ComponentActivity() {
                 .fillMaxWidth()
                 .padding(8.dp)
         ) {
+            if (message.user_id != USER_ID&&message.user_id!="null") {
+                Button(
+                    onClick = {
+
+                        coroutineScope.launch {
+                            val userDetails = fetchUserDetails(message.user_id)
+                            selectedUserDetail = userDetails
+                            showUserDetailDialog = true
+                        }
+                    },
+                    modifier = Modifier
+                        .size(52.2.dp)
+                        .padding(2.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (message.user_id == USER_ID) Color(0xFFD8F0D8) else Color(
+                            0xFF9B30FF
+                        )
+                    )
+                )
+                { Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ){
+                    Text(
+                        text = message.name.substring(0, 1)
+                            .uppercase(), // Display first letter of name
+                        color = Color.Black,
+                        //fontSize =11.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }}
+            }
             Box(
                 modifier = Modifier
                     .background(
@@ -530,6 +583,40 @@ class ChatActivity : ComponentActivity() {
                     )
                 }
             }
+            if (message.user_id == USER_ID) {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            val userDetails = fetchUserDetails(message.user_id)
+                            selectedUserDetail = userDetails
+                            showUserDetailDialog = true
+                        }
+                    },
+                    modifier = Modifier
+                        .size(52.2.dp)
+                        .padding(2.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (message.user_id == USER_ID) Color(0xFFD8F0D8) else Color(
+                            0xFF9B30FF
+                        )
+                    )
+                )
+
+                {
+                    Text(
+                        text = message.name.substring(0, 1)
+                            .uppercase(), // Display first letter of name
+                        color = Color.Black,
+                        //fontSize =15.sp, // 设置字体大小
+                        textAlign = TextAlign.Center,
+                        //modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center)
+                        //.padding(0.dp),
+                    )
+                }
+            }
+
+
         }
         if (showSuccessDialog) {
             AlertDialog(
@@ -543,8 +630,116 @@ class ChatActivity : ComponentActivity() {
                 }
             )
         }
+        //新增部分
+        // 显示用户详细信息对话框
+        if (showUserDetailDialog && selectedUserDetail!= null) {
+            AlertDialog(
+                onDismissRequest = { showUserDetailDialog = false },
+                title = { Text("User Details") },
+                text = {
+                    Column {
+                        // 展示用户的姓名信息
+                        Text("Name: ${selectedUserDetail!!.name}")
+                        // 展示用户的邮箱信息
+                        Text("Email: ${selectedUserDetail!!.email}")
+                        // 展示用户的类型信息
+                        Text("Type: ${selectedUserDetail!!.type}")
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                val response = createPrivateChatroom(USER_ID, message.user_id)
+                                showUserDetailDialog = false
+                                if (response.contains("chatroom_id")) {
+                                    val json = Json { ignoreUnknownKeys = true }
+                                    val jsonObject = json.parseToJsonElement(response).jsonObject
+                                    val chatroomId = jsonObject["chatroom_id"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                                    val chatroomName = jsonObject["chatroom_name"]?.jsonPrimitive?.contentOrNull
+                                    // 如果 chatroomId 存在，则导航到新的聊天房间
+                                    if (chatroomId != null) {
+                                        try {
+                                            Log.d("ChatActivity", "Starting PrivateChatActivity with chatroomId: $chatroomId")
+                                            val intent = Intent(this@ChatActivity, PrivateChatActivity::class.java)
+                                            intent.putExtra("chatroom_id", chatroomId)
+                                            intent.putExtra("chatroom_name", chatroomName)
+                                            startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Log.e("ChatActivity", "Error starting PrivateChatActivity", e)
+                                        }
+                                    } else {
+                                        Log.e("ChatActivity", "Failed to parse chatroom_id from response: $response")
+                                    }
+                                } else {
+                                    Log.e("ChatActivity", "Error creating private chatroom: $response")
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Send message")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = { showUserDetailDialog = false }
+                    ) {
+                        Text("Close")
+                    }
+                }
+            )
+        }
+        //新增部分结束
+
+    }
+    private suspend fun fetchUserDetails(userId: String): UserDetail? {
+        val apiClient = ApiClient()
+        val json = Json { ignoreUnknownKeys = true}
+        return withContext(Dispatchers.IO) {
+            try {
+                val jsonResponse = apiClient.GET("http://61.238.214.170:8090/api/user/$userId")
+                Log.d("ChatActivity", "Received response: $jsonResponse")
+                if (jsonResponse.isNotEmpty()) {
+                    json.decodeFromString<UserDetail>(jsonResponse)
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e("ChatActivity", "Error fetching user details", e)
+                null
+            }
+        }
     }
 
+    private suspend fun createPrivateChatroom(user1Id: String, user2Id: String): String {
+        val apiClient = ApiClient()
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d("ChatActivity", "Creating private chatroom for users: $user1Id and $user2Id")
+
+                val request = CreatePrivateChatRequest(user1Id, user2Id)
+                Log.d("ChatActivity", "Sending request: ${Json.encodeToString(request)}")
+
+                val response = apiClient.POST(
+                    "http://61.238.214.170:8090/api/create_private_chat",
+                    Json.encodeToString(request)
+                )
+
+                Log.d("ChatActivity", "Received response: $response")
+
+                if (response.contains("chatroom_id")) {
+                    Log.d("ChatActivity", "Private chatroom created successfully")
+                } else {
+                    Log.e("ChatActivity", "Error creating private chatroom: $response")
+                }
+
+                response
+            } catch (e: Exception) {
+                Log.e("ChatActivity", "Error creating private chatroom", e)
+                "Error: ${e.message}"
+            }
+        }
+    }
 
     @kotlinx.serialization.Serializable
     data class MessageResponse(val data: MessageData)

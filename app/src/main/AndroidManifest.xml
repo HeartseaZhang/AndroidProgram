@@ -36,6 +36,7 @@
 
         <activity android:name=".ChatActivity"></activity>
         <activity android:name=".RegisterActivity"></activity>
+        <activity android:name=".PrivateChatActivity"></activity>
         <service
             android:name=".util.MyFirebaseMessagingService"
             android:exported="false">

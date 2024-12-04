@@ -1,5 +1,5 @@
 package com.example.mock_up
-
+import androidx.compose.ui.platform.LocalContext
 import ApiClient
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(modifier: Modifier = Modifier)
 {
+    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(0) }
     Scaffold(
 //        topBar = {
@@ -377,15 +378,14 @@ fun TaskItem(task: Task) {
     val coroutineScope = rememberCoroutineScope()
     val apiClient = ApiClient()
     var flag by remember (task.id) { mutableStateOf(task.completedAt.isNullOrEmpty()) }
-
+    var completedAt by remember { mutableStateOf(task.completedAt) }
     var showSuccessDialog by remember { mutableStateOf(false) } // 添加状态变量
 
     OutlinedButton(
         onClick = { /* Handle task click */ },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .height(60.dp),
+            .padding(vertical = 4.dp),
         shape = MaterialTheme.shapes.small,
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = Color.Black
@@ -394,12 +394,16 @@ fun TaskItem(task: Task) {
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(    modifier = Modifier.weight(1f), // 让文本占据可用空间
+                verticalArrangement = Arrangement.Center) {
                 Text(text = task.title, style = MaterialTheme.typography.bodyLarge)
                 Text(text = task.description, style = MaterialTheme.typography.bodySmall)
-
+                if (!completedAt.isNullOrEmpty()) {
+                    Text(text = "Task done in $completedAt")
+                }
             }
             //var flag = false
             if (task.completerUserId == USER_ID) {
@@ -450,6 +454,7 @@ fun MeScreen(modifier: Modifier = Modifier) {
     var editField by remember { mutableStateOf("") }
     var editType by remember { mutableStateOf("") }
 
+    val context = LocalContext.current
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -486,8 +491,28 @@ fun MeScreen(modifier: Modifier = Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = "Email: $userEmail", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.width(8.dp))
+
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(
+            onClick = {
+                UserSession.clearSession()
+                val intent = Intent(context, LoginActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                context.startActivity(intent)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+        ) {
+            Text(
+                text = "Log Out",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
     }
+
 
     if (showEditDialog) {
         AlertDialog(
