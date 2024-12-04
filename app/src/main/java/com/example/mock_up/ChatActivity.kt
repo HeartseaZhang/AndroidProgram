@@ -1,11 +1,22 @@
 package com.example.mock_up
 
 import ApiClient
+import android.annotation.SuppressLint
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,19 +31,27 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import java.text.SimpleDateFormat
 import java.util.*
 import com.example.mock_up.UserSession.userId
 import com.example.mock_up.UserSession.userName
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.io.ByteArrayOutputStream
+import kotlin.io.encoding.ExperimentalEncodingApi
+import android.util.Base64
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 
 @kotlinx.serialization.Serializable
 data class TaskRequest(
@@ -130,7 +149,7 @@ class ChatActivity : ComponentActivity() {
                     withContext(Dispatchers.Main) {
                         messages.clear()
                         messages.addAll(response.data.messages.sortedByDescending { message ->
-                            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).parse(message.message_time)
+                            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(message.message_time)
                         })
                     }
 //                    messages.clear()
@@ -138,6 +157,50 @@ class ChatActivity : ComponentActivity() {
                 }
             }
         }
+        fun myConvertor(uri: Uri): Bitmap {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val source = ImageDecoder.createSource(contentResolver, uri)
+                ImageDecoder.decodeBitmap(source)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaStore.Images.Media.getBitmap(contentResolver, uri)
+            }
+        }
+
+        val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.PickVisualMedia(),
+            onResult = { uri ->
+                uri?.let {
+                    val bitmap = myConvertor(it)
+                    val stream = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
+                    val imageString = Base64.encodeToString(stream.toByteArray(), Base64.DEFAULT)
+
+                    val sendMessageRequest = SendTaskRequest(
+                        description = imageString,
+                        title = "image",
+                        createUserId = USER_ID,
+                        chatroom_id = chatroomId
+                    )
+
+                    coroutineScope.launch(Dispatchers.IO) {
+                        try {
+                            val postResponse = apiClient.POST("http://149.248.20.141:80/send_task",
+                                Json.encodeToString(sendMessageRequest))
+                            withContext(Dispatchers.Main) {
+                                if (postResponse.contains("ERROR")) {
+                                    Log.e("POST Request", "Failed to send message: $postResponse")
+                                } else {
+                                    loadMessages()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("POST Request", "Exception: ", e)
+                        }
+                    }
+                }
+            }
+        )
 
 //fun loadMessages() {
 //    coroutineScope.launch(Dispatchers.IO) {
@@ -271,6 +334,44 @@ class ChatActivity : ComponentActivity() {
                 }) {
                     Text("Send")
                 }
+                Button(onClick = {
+                    // Launch photo picker
+                    singlePhotoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }) {
+                    Text("Send Image")
+                }
+                Button(onClick = {
+                    if (messageText.isNotEmpty()) {
+
+                        val sendMessageRequest = SendMessageRequest(
+                            message = messageText,
+                            name = USER_NAME,
+                            user_id = USER_ID,
+                            chatroom_id = chatroomId
+                        )
+
+                        coroutineScope.launch(Dispatchers.IO) {
+                            try {
+                                val postResponse = apiClient.POST("http://149.248.20.141:80/askAi",
+                                    Json.encodeToString(sendMessageRequest))
+                                withContext(Dispatchers.Main) {
+                                    if (postResponse.contains("ERROR")) {
+                                        Log.e("POST Request", "Failed to send message: $postResponse")
+                                    } else {
+                                        loadMessages()
+                                        messageText = ""
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e("POST Request", "Exception: ", e)
+                            }
+                        }
+                    }
+                }) {
+                    Text("Ask Ai")
+                }
                 Button(onClick = { showDialog = true }) {
                     Text("Initiate Task")
                 }
@@ -359,13 +460,26 @@ class ChatActivity : ComponentActivity() {
             Box(
                 modifier = Modifier
                     .background(
-                        if (message.user_id==USER_ID) Color(0xFFD8F0D8) else Color(0xFF9B30FF)  // 绿色和紫色背景
+                        if (message.user_id==USER_ID) Color(0xFFD8F0D8) else if(message.user_id=="null") Color(0xFFFFFFFF) else Color(0xFF9B30FF)  // 绿色和紫色背景
                     )
                     .padding(12.dp)
             ) {
                 Column {
                     if (message.title.isNullOrEmpty()) {
                         Text(text = "${message.name}: ${message.message}")
+                    } else if(message.title.equals("image")){
+                        message.description?.let { imageString ->
+                            val imageBytes = Base64.decode(imageString, Base64.DEFAULT)
+                            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "Image",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
                     } else {
                         Text(text = "${message.name}: ")
                         Text("${message.title}")
@@ -430,43 +544,18 @@ class ChatActivity : ComponentActivity() {
             )
         }
     }
-//@Composable
-//fun MessageItem(message: Message) {
-//    Row(
-//        horizontalArrangement = if (message.user_id == USER_ID) Arrangement.End else Arrangement.Start,
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .padding(8.dp)
-//    ) {
-//        Box(
-//            modifier = Modifier
-//                .background(
-//                    if (message.user_id == USER_ID) Color(0xFFD8F0D8) else Color(0xFF9B30FF)  // 绿色和紫色背景
-//                )
-//                .padding(12.dp)
-//        ) {
-//            Column {
-//                when (message) {
-//                    is TextMessage -> {
-//                        Text(text = "${message.name}: ${message.message}")
-//                    }
-//                    is TaskMessage -> {
-//                        Text(text = "${message.name} Task: ${message.title}")
-//                        Text(text = "Description: ${message.description}")
-//                    }
-//                }
-//                Text(
-//                    text = message.message_time,
-//                    style = MaterialTheme.typography.bodySmall
-//                )
-//            }
-//        }
-//    }
-//}
+
 
     @kotlinx.serialization.Serializable
     data class MessageResponse(val data: MessageData)
 
     @kotlinx.serialization.Serializable
     data class MessageData(val messages: List<Message>)
+
+    @kotlinx.serialization.Serializable
+    data class PostRequestModel(val data: String)
 }
+
+
+
+

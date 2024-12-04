@@ -399,6 +399,7 @@ fun TaskItem(task: Task) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = task.title, style = MaterialTheme.typography.bodyLarge)
                 Text(text = task.description, style = MaterialTheme.typography.bodySmall)
+
             }
             //var flag = false
             if (task.completerUserId == USER_ID) {

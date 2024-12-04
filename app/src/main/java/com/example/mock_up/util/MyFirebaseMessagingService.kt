@@ -19,7 +19,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             if (task.isSuccessful) {
                 val token = task.result
                 Log.d("FCM Token", "Token: $token")
-                sendRegistrationToServer(token)
+                //sendRegistrationToServer(token)
             } else {
                 Log.w("FCM Token", "Fetching FCM registration token failed", task.exception)
             }
@@ -31,36 +31,36 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         //sendRegistrationToServer(token)
     }
 
-    private fun sendRegistrationToServer(token: String) {
-        // Implement your own logic to submit token to server
-        val apiClient = ApiClient()
-        val userId = "" // 使用你的学生ID
-        apiClient.POST(
-            "https://149.248.20.141:80/submit_push_token",
-            "user_id=$userId&token=$token"
-        )
+//    private fun sendRegistrationToServer(token: String) {
+//        // Implement your own logic to submit token to server
+//        val apiClient = ApiClient()
+//        val userId = "" // 使用你的学生ID
+//        apiClient.POST(
+//            "https://149.248.20.141:80/submit_push_token",
+//            "user_id=$userId&token=$token"
+//        )
+//    }
+override fun onMessageReceived(remoteMessage: RemoteMessage) {
+    // Handle FCM messages here
+    Log.d(TAG, "From: ${remoteMessage.from}")
+    // Check if the message contains data payload
+    remoteMessage.data.isNotEmpty().let {
+        Log.d(TAG, "Message data payload: ${remoteMessage.data}")
+        // Handle data payload
     }
-    override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        // Handle FCM messages here
-        Log.d(TAG, "From: ${remoteMessage.from}")
-        // Check if the message contains data payload
-        remoteMessage.data.isNotEmpty().let {
-            Log.d(TAG, "Message data payload: ${remoteMessage.data}")
-            // Handle data payload
+    // Check if the message contains a notification payload
+    remoteMessage.notification?.let {
+        Log.d(TAG, "Message Notification Body: ${it.body}")
+        sendNotification("${it.title}", "${it.body}")
+    }
 }
-        // Check if the message contains a notification payload
-        remoteMessage.notification?.let {
-            Log.d(TAG, "Message Notification Body: ${it.body}")
-            sendNotification("${it.title}", "${it.body}")
-        }
-    }
     private fun sendNotification(title: String, message: String) {
         val channelId = "MyNotification"
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(message)
             .setAutoCancel(true)
-
+            .setSmallIcon(com.example.mock_up.R.drawable.notification)
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
