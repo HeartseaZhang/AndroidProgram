@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import com.example.mock_up.ChatActivity.MessageResponse
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -285,22 +286,27 @@ class PrivateChatActivity : ComponentActivity() {
                 .padding(8.dp)
         ) {
             if (message.user_id != USER_ID) {
-            Button(
-                onClick = {
-                },
-                modifier = Modifier
-                    .size(40.dp)
-                    .padding(4.dp),
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (message.user_id == USER_ID) Color(0xFFD8F0D8) else Color(0xFF9B30FF)
+                Button(
+                    onClick = {  },
+                    modifier = Modifier
+                        .size(52.2.dp)
+                        .padding(2.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (message.user_id == USER_ID) Color(0xFFD8F0D8) else Color(
+                            0xFF9B30FF
+                        )
+                    )
                 )
-            ) {
-                Text(
-                    text = message.name.substring(0, 1).uppercase(), // Display first letter of name
-                    color = Color.White
-                )
-            }}
+                {
+                    Text(
+                        text = message.name.substring(0, 1).uppercase(), // Display first letter of name
+                        color = Color.Black,
+                        //fontSize =15.sp, // 设置字体大小
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
             Box(
                 modifier = Modifier
                     .background(
@@ -342,23 +348,28 @@ class PrivateChatActivity : ComponentActivity() {
             }
             if (message.user_id == USER_ID) {
                 Button(
-                    onClick = {
-                    },
+                    onClick = {  },
                     modifier = Modifier
-                        .size(40.dp)
-                        .padding(4.dp),
+                        .size(52.2.dp)
+                        .padding(2.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (message.user_id == USER_ID) Color(0xFFD8F0D8) else Color(0xFF9B30FF)
+                        containerColor = if (message.user_id == USER_ID) Color(0xFFD8F0D8) else Color(
+                            0xFF9B30FF
+                        )
                     )
-                ) {
+                )
+                {
                     Text(
                         text = message.name.substring(0, 1).uppercase(), // Display first letter of name
-                        color = Color.White
+                        color = Color.Black,
+                        //fontSize =15.sp, // 设置字体大小
+                        textAlign = TextAlign.Center,
                     )
-                }}
+                }
+            }
         }
-        }
+    }
 
     private fun checkUserSession() {
         if (USER_ID.isEmpty() || USER_NAME.isEmpty()) {

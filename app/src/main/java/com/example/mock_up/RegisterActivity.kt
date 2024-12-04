@@ -127,7 +127,7 @@ class RegisterActivity : ComponentActivity() {
             ) {
                 TextField(
                     value = email,
-                    onValueChange = { email = it },
+             onValueChange = { email = it },
                     label = { Text("Email") },
                     modifier = Modifier.weight(1f)
                 )
@@ -191,7 +191,7 @@ class RegisterActivity : ComponentActivity() {
                                     type = "user"
                                 )
                                 val response = apiClient.POST(
-                                    "http://149.248.20.141:80/user/create/$verificationCode",
+                                    "http://149.248.20.141:80/user/create/{$verificationCode}",
                                     Json.encodeToString(user)
                                 )
                                 if (response.contains("errorMsg")) {
