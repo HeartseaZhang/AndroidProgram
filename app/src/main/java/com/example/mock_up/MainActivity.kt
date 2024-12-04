@@ -1,8 +1,6 @@
 package com.example.mock_up
 import androidx.compose.ui.platform.LocalContext
 import ApiClient
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -40,11 +38,8 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.ui.unit.sp
-import com.example.mock_up.ChatActivity.MessageResponse
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.encodeToString
-import java.text.SimpleDateFormat
-import java.util.Locale
+
 
 @Serializable
 data class ChatroomResponse(
@@ -88,9 +83,8 @@ class MainActivity : ComponentActivity() {
         checkGooglePlayServices()
     }
 @Composable
-fun MainScreen(modifier: Modifier = Modifier)
+fun MainScreen()
 {
-    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(0) }
     Scaffold(
 //        topBar = {
@@ -276,7 +270,6 @@ fun MainScreen(modifier: Modifier = Modifier)
     }
 
 }
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskScreen(modifier: Modifier = Modifier) {
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -341,7 +334,6 @@ fun MyCreatedTasksScreen(modifier: Modifier = Modifier) {
 
 @Composable
 fun MyAcceptedTasksScreen(modifier: Modifier = Modifier) {
-    var showSuccessDialog by remember { mutableStateOf(false) } // 添加状态变量
 
     // Display tasks accepted by the user
     // This part is left for further implementation
@@ -378,7 +370,7 @@ fun TaskItem(task: Task) {
     val coroutineScope = rememberCoroutineScope()
     val apiClient = ApiClient()
     var flag by remember (task.id) { mutableStateOf(task.completedAt.isNullOrEmpty()) }
-    var completedAt by remember { mutableStateOf(task.completedAt) }
+    val completedAt by remember { mutableStateOf(task.completedAt) }
     var showSuccessDialog by remember { mutableStateOf(false) } // 添加状态变量
 
     OutlinedButton(
@@ -416,7 +408,7 @@ fun TaskItem(task: Task) {
                         flag = false
 
                         coroutineScope.launch(Dispatchers.IO) {
-                            val jsonResponse = apiClient.POST(
+                            apiClient.POST(
                                 "http://149.248.20.141:80/task/complete?taskId=${task.id}",
                                 Json.encodeToString(task.id)
                             )
@@ -449,7 +441,7 @@ fun MeScreen(modifier: Modifier = Modifier) {
     val coroutineScope = rememberCoroutineScope()
     val apiClient = ApiClient()
     var userName by remember { mutableStateOf("$userName") }
-    var userEmail by remember { mutableStateOf("${UserSession.userEmail}") }
+    val userEmail by remember { mutableStateOf("${UserSession.userEmail}") }
     var showEditDialog by remember { mutableStateOf(false) }
     var editField by remember { mutableStateOf("") }
     var editType by remember { mutableStateOf("") }

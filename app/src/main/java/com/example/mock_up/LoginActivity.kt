@@ -15,7 +15,6 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import com.example.mock_up.ChatActivity.MessageData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -26,7 +25,7 @@ import androidx.compose.ui.Alignment
 import kotlinx.serialization.Serializable
 
 @kotlinx.serialization.Serializable
-data class loginRequest(
+data class LoginRequest(
     val userId: String,
     val password: String,
 )
@@ -115,7 +114,7 @@ class LoginActivity : ComponentActivity() {
     private suspend fun login(userId: String, password: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val loginRequest = loginRequest(
+                val loginRequest = LoginRequest(
                     password = password,
                     userId = userId,
                 )

@@ -1,7 +1,6 @@
 package com.example.mock_up
 
 import ApiClient
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -16,7 +15,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,7 +29,6 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.background
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -42,13 +39,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 import com.example.mock_up.UserSession.userId
 import com.example.mock_up.UserSession.userName
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.ByteArrayOutputStream
-import kotlin.io.encoding.ExperimentalEncodingApi
 import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.CircleShape
@@ -520,7 +514,7 @@ class ChatActivity : ComponentActivity() {
                 Column {
                     if (message.title.isNullOrEmpty()) {
                         Text(text = "${message.name}: ${message.message}")
-                    } else if(message.title.equals("image")){
+                    } else if(message.title=="image"){
                         message.description?.let { imageString ->
                             val imageBytes = Base64.decode(imageString, Base64.DEFAULT)
                             val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
@@ -747,8 +741,6 @@ class ChatActivity : ComponentActivity() {
     @kotlinx.serialization.Serializable
     data class MessageData(val messages: List<Message>)
 
-    @kotlinx.serialization.Serializable
-    data class PostRequestModel(val data: String)
 }
 
 

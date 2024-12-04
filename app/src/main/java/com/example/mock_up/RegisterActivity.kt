@@ -50,7 +50,7 @@ class RegisterActivity : ComponentActivity() {
         var verificationCode by remember { mutableStateOf("") }
         var userIdExists by remember { mutableStateOf(false) }
         var showSuccessDialog by remember { mutableStateOf(false) }
-        var cooldown by remember { mutableStateOf(0) }
+        var cooldown by remember { mutableIntStateOf(0) }
         val coroutineScope = rememberCoroutineScope()
         val apiClient = ApiClient()
 

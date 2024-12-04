@@ -42,12 +42,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import java.text.SimpleDateFormat
 import java.util.*
-import com.example.mock_up.UserSession.userId
-import com.example.mock_up.UserSession.userName
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+
 import java.io.ByteArrayOutputStream
 
 class PrivateChatActivity : ComponentActivity() {
@@ -84,9 +79,9 @@ class PrivateChatActivity : ComponentActivity() {
         val messages = remember { mutableStateListOf<Message>() }
         val coroutineScope = rememberCoroutineScope()
         val apiClient = ApiClient()
-        var showDialog by remember { mutableStateOf(false) }
-        var taskTitle by remember { mutableStateOf("") }
-        var taskDescription by remember { mutableStateOf("") }
+//        var showDialog by remember { mutableStateOf(false) }
+//        var taskTitle by remember { mutableStateOf("") }
+//        var taskDescription by remember { mutableStateOf("") }
 
         fun loadMessages() {
             coroutineScope.launch(Dispatchers.IO) {
@@ -316,7 +311,7 @@ class PrivateChatActivity : ComponentActivity() {
                 Column {
                     if (message.title.isNullOrEmpty()) {
                         Text(text = "${message.name}: ${message.message}")
-                    } else if(message.title.equals("image")){
+                    } else if(message.title=="image"){
                         message.description?.let { imageString ->
                             val imageBytes = Base64.decode(imageString, Base64.DEFAULT)
                             val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
@@ -365,7 +360,7 @@ class PrivateChatActivity : ComponentActivity() {
         }
         }
 
-    fun checkUserSession() {
+    private fun checkUserSession() {
         if (USER_ID.isEmpty() || USER_NAME.isEmpty()) {
             Log.e("PrivateChatActivity", "User session invalid. USER_ID: $USER_ID, USER_NAME: $USER_NAME")
             // 处理无效的用户会话
